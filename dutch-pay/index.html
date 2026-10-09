@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>모임 정산</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <input id="groupName" class="group-name" placeholder="모임 이름" maxlength="40" />
+      <button id="resetBtn" class="ghost danger" type="button">초기화</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- 1. 멤버 -->
+    <section class="card">
+      <h2><span class="step">1</span>참여자</h2>
+      <form id="memberForm" class="row">
+        <input id="memberInput" placeholder="이름 입력 후 Enter" maxlength="20" autocomplete="off" />
+        <button type="submit">추가</button>
+      </form>
+      <ul id="memberList" class="chips"></ul>
+    </section>
+
+    <!-- 2. 지출 -->
+    <section class="card">
+      <h2><span class="step">2</span>지출 내역</h2>
+      <form id="expenseForm" class="expense-form">
+        <div class="grid2">
+          <label>항목
+            <input id="expTitle" placeholder="예) 1차 고깃집" maxlength="40" required />
+          </label>
+          <label>금액(원)
+            <input id="expAmount" inputmode="numeric" placeholder="0" required />
+          </label>
+        </div>
+        <label>결제한 사람
+          <select id="expPayer" required></select>
+        </label>
+        <div class="field">
+          <div class="field-head">
+            <span>함께 쓴 사람</span>
+            <button type="button" id="toggleAll" class="link">전체 선택/해제</button>
+          </div>
+          <div id="expParticipants" class="checks"></div>
+        </div>
+        <div class="row end">
+          <button type="button" id="cancelEdit" class="ghost" hidden>취소</button>
+          <button type="submit" id="expSubmit" class="primary">지출 추가</button>
+        </div>
+      </form>
+      <ul id="expenseList" class="expenses"></ul>
+      <p id="totalLine" class="total"></p>
+    </section>
+
+    <!-- 3. 정산 -->
+    <section class="card">
+      <h2><span class="step">3</span>정산 결과</h2>
+      <div id="balances" class="balances"></div>
+      <h3>송금 목록</h3>
+      <ul id="transfers" class="transfers"></ul>
+      <button id="copyBtn" class="primary wide" type="button">결과 텍스트 복사</button>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="settle.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
