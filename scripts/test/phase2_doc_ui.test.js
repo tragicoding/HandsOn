@@ -25,7 +25,14 @@ const shots = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
   const step = async (name, fn) => {
-    try { await fn(); results.push({ name, ok: true }); } catch (e) { results.push({ name, ok: false, msg: e.message.split('\n')[0] }); }
+    try { await fn(); results.push({ name, ok: true }); } catch (e) {
+      results.push({ name, ok: false, msg: e.message.split('\n')[0] });
+      // 실패가 뒤 테스트로 번지지 않도록 화면을 정리한다 (열린 팝업 닫기, 수정 중이면 취소)
+      try {
+        if (await page.locator('#modal').isVisible()) await page.locator('#modalBtns button', { hasText: /취소/ }).click({ timeout: 2000 });
+        if (await page.locator('#cancelEdit').isVisible()) await page.locator('#cancelEdit').click({ timeout: 2000 });
+      } catch (_) { /* 정리 실패는 무시 */ }
+    }
   };
   const ok = (c, m) => { if (!c) throw new Error(m); };
   const shot = async (label, opts = {}) => {
@@ -55,9 +62,9 @@ const shots = [];
     await page.fill('#memberInput', '김유철'); await page.click('#memberForm button[type=submit]');
     ok((await page.locator('#memberList .chip').count()) === 3, '칩 3개가 아님');
   });
-  await step('[예외처리 성공] FR-01 중복 이름/빈 이름은 추가되지 않는다', async () => {
-    await addMember('김진서'); await addMember('   ');
-    ok((await page.locator('#memberList .chip').count()) === 3, '중복/빈 이름이 추가됨');
+  await step('[예외처리 성공] FR-01 빈 이름(공백만)은 추가되지 않는다', async () => {
+    await addMember('   ');
+    ok((await page.locator('#memberList .chip').count()) === 3, '빈 이름이 추가됨');
   });
   await shot('참여자 3명 추가');
 
@@ -154,6 +161,30 @@ const shots = [];
     await page.fill('#expAmount', '70000'); await page.click('#expSubmit');
     ok((await text('#expenseList')).includes('70,000원'), '수정 반영 안 됨');
   });
+  await shot('지출 수정 화면(불러오기 후 저장한 결과)');
+
+  await step('수정 시 잔여 선택 유지: 이미 선택한 방식(랜덤/결제자)은 팝업 없이 그대로', async () => {
+    await page.click('#expenseList .expense:nth-child(3) [data-edit]'); // 3차 노래방(랜덤, 10,000원/3명)
+    await page.fill('#expAmount', '10001'); await page.click('#expSubmit');
+    ok(await page.locator('#modal').isHidden(), '이미 랜덤을 골랐는데 수정 저장 때 팝업이 다시 뜸');
+    ok((await text('#expenseList .expense:nth-child(3) .exp-sub')).includes('잔여 랜덤'), '랜덤 선택이 유지되지 않음: ' + (await text('#expenseList .expense:nth-child(3) .exp-sub')));
+    await page.click('#expenseList .expense:nth-child(2) [data-edit]'); // 2차 술집(결제자 부담)
+    await page.fill('#expTitle', '2차 술집(수정)'); await page.click('#expSubmit');
+    ok(await page.locator('#modal').isHidden(), '이미 결제자 부담을 골랐는데 팝업이 다시 뜸');
+    ok((await text('#expenseList .expense:nth-child(2) .exp-sub')).includes('잔여 결제자 부담'), '결제자 부담 선택이 유지되지 않음');
+  });
+  await shot('수정 저장 후 기존 잔여 처리 선택(랜덤/결제자 부담) 유지');
+  await step('수정 시 잔여 선택: 수정으로 처음 나누어떨어지지 않게 되면 팝업으로 묻는다', async () => {
+    await page.click('#expenseList .expense:nth-child(1) [data-edit]'); // 1차 고기집 70,000원/2명
+    await page.fill('#expAmount', '70001'); await page.click('#expSubmit');
+    ok(await page.locator('#modal').isVisible(), '처음 나누어떨어지지 않게 됐는데 팝업이 안 뜸');
+    await shot('수정으로 처음 나누어떨어지지 않게 되어 뜬 팝업');
+    await page.click('#modalBtns >> text=결제자가 내기');
+    await page.click('#expenseList .expense:nth-child(1) [data-edit]');
+    await page.fill('#expAmount', '70000'); await page.click('#expSubmit');
+    ok((await text('#expenseList')).includes('70,000원'), '원래 금액 복구 실패');
+  });
+
   await step('FR-02 지출 삭제', async () => {
     const n = await page.locator('#expenseList .expense').count();
     await page.click('#expenseList .expense:nth-child(4) [data-del]');
@@ -165,6 +196,7 @@ const shots = [];
     const cnt = await page.locator('#discountInputs input').count();
     ok(cnt === 2, `감면 대상이 ${cnt}명 선택됨(최대 2명이어야 함)`);
     ok((await text('#toast')).includes('감면'), '거부 안내 없음: ' + (await text('#toast')));
+    await shot('전원 감면 선택 거부 안내(최대 N-1명)');
     for (const n of ['김진서', '김진형', '김유철']) { if (await toggleBtn('#expDiscounts', n).evaluate((el) => el.classList.contains('on'))) await toggleBtn('#expDiscounts', n).click(); }
   });
   await step('비활성 규칙: 비활성화해도 기존 지출·정산은 그대로', async () => {
@@ -177,6 +209,7 @@ const shots = [];
   await step('비활성 규칙: 지출 목록의 수정에서 함께한 사람을 비활성화(해제)해야 반영', async () => {
     await page.click('#expenseList .expense:nth-child(2) [data-edit]');
     ok((await page.locator('#expParticipants button.inactive').count()) === 1, '수정 화면에 비활성 참여자 칩(.inactive)이 없음');
+    await shot('지출 수정 화면: 비활성 참여자 칩(점선)이 보임');
     await page.locator('#expParticipants button.inactive').click();
     await page.click('#expSubmit');
     ok(await page.locator('#modal').isHidden(), '40,000원/2명인데 팝업이 뜸');
@@ -216,6 +249,42 @@ const shots = [];
     page.on('request', (r) => { if (!r.url().startsWith('file://')) reqs.push(r.url()); });
     await page.reload(); await page.click('#copyBtn');
     ok(reqs.length === 0, '외부 요청: ' + reqs.join(', '));
+  });
+
+  await step('동명이인: 같은 이름은 (1),(2),(3)으로 구분되어 추가된다', async () => {
+    await addMember('박민수'); await addMember('박민수');
+    let t = await text('#memberList');
+    ok(t.includes('박민수(1)') && t.includes('박민수(2)'), '(1),(2) 구분 안 됨: ' + t);
+    ok(!/박민수\s*×?\s*\n/.test(t.replace('박민수(1)', '').replace('박민수(2)', '')), '번호 없는 이름이 남음: ' + t);
+    await addMember('박민수');
+    t = await text('#memberList');
+    ok(t.includes('박민수(3)') && (await page.locator('#memberList .chip').count()) === 6, '(3) 추가 실패: ' + t);
+    ok((await text('#expParticipants')).includes('박민수(2)'), '지출 입력 화면에도 구분된 이름이 보이지 않음');
+  });
+  await shot('동명이인 (1)(2)(3) 구분');
+
+  await step('[예외처리 성공] 감면율 소수 입력(12.5)은 거부되고 정수만 남으며 안내한다', async () => {
+    await page.setViewportSize({ width: 430, height: 900 });
+    await toggleBtn('#expDiscounts', '김진서').click();
+    await page.fill('#discountInputs input', '12.5');
+    ok((await page.inputValue('#discountInputs input')) === '12', '소수가 그대로 남음: ' + (await page.inputValue('#discountInputs input')));
+    ok((await text('#toast')).includes('정수'), '정수 안내 없음: ' + (await text('#toast')));
+    await shot('감면율 소수 입력 거부 안내');
+    await toggleBtn('#expDiscounts', '김진서').click();
+  });
+
+  await step('[예외처리 성공] 결제한 사람이 함께 쓴 사람에 없으면 지출이 거부되고 안내한다', async () => {
+    const n = await page.locator('#expenseList .expense').count();
+    await page.fill('#expTitle', '결제자 제외 테스트'); await page.fill('#expAmount', '30000');
+    await page.selectOption('#expPayer', { label: '김진서' });
+    await toggleBtn('#expParticipants', '김진서').click();
+    await page.click('#expSubmit');
+    ok((await text('#toast')).includes('결제한 사람'), '결제자 안내 없음: ' + (await text('#toast')));
+    ok(await page.locator('#modal').isHidden(), '팝업이 뜸');
+    ok((await page.locator('#expenseList .expense').count()) === n, '거부해야 하는데 지출이 추가됨');
+    await shot('결제자가 함께 쓴 사람에 없는 지출 거부 안내');
+    await toggleBtn('#expParticipants', '김진서').click();
+    await page.fill('#expTitle', ''); await page.fill('#expAmount', '');
   });
 
   await step('초기화: 확인 팝업 후 모든 데이터 삭제', async () => {

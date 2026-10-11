@@ -56,7 +56,7 @@ for (const n of [5, 10, 15, 20]) {
     const label = `${n}명 ${name}`;
     const r = S.computeAll(ms, ex);
     const total = sum(ex.map((e) => e.amount));
-    test('A.불변식', `${label}: 총지출 = 부담합 = 결제합`, () => { eq(r.total, total); eq(sum(r.balances.map((b) => b.owed)), total); eq(sum(r.balances.map((b) => b.paid)), total); });
+    test('A.불변식', `${label}: 총지출 = 부담합 = 결제합 (제외된 지출 없음)`, () => { eq(r.invalid.length, 0, '검증에서 제외된 지출 있음'); eq(r.total, total); eq(sum(r.balances.map((b) => b.owed)), total); eq(sum(r.balances.map((b) => b.paid)), total); });
     test('A.불변식', `${label}: 차액합 0, 모두 정수`, () => {
       eq(sum(r.balances.map((b) => b.net)), 0);
       assert(r.balances.every((b) => [b.paid, b.owed, b.net].every(Number.isInteger)), '정수 아님');
@@ -145,7 +145,7 @@ test('D.비활성', '비활성화는 기존 지출에 영향 없음: 비활성 �
 });
 test('D.비활성', '비활성 참여자만 선택된 지출도 그대로 계산(자동 제외·재분배 금지)', () => {
   const ms = mk(3); ms[1].active = ms[2].active = false;
-  const r = S.computeAll(ms, [{ id: 'e', amount: 9000, payer: 'm0', participants: ['m1', 'm2'], mode: 'payer' }]);
+  const r = S.computeAll(ms, [{ id: 'e', amount: 9000, payer: 'm1', participants: ['m1', 'm2'], mode: 'payer' }]);
   eq(r.total, 9000); eq(r.balances.find((b) => b.id === 'm1').owed, 4500);
 });
 test('D.비활성', '지출 수정에서 함께한 사람을 해제하면 그때 재분배(참여자 목록이 바뀐 지출)', () => {
@@ -156,7 +156,7 @@ test('D.비활성', '지출 수정에서 함께한 사람을 해제하면 그때
 });
 test('D.예외', '결제자가 비활성이어도 결제 금액은 반영', () => {
   const ms = mk(3); ms[0].active = false;
-  const r = S.computeAll(ms, [{ id: 'e', amount: 9000, payer: 'm0', participants: ['m1', 'm2'], mode: 'payer' }]);
+  const r = S.computeAll(ms, [{ id: 'e', amount: 9000, payer: 'm0', participants: ['m0', 'm1', 'm2'], mode: 'payer' }]);
   eq(r.balances.find((b) => b.id === 'm0').paid, 9000);
   eq(sum(r.balances.map((b) => b.net)), 0);
 });
@@ -198,7 +198,7 @@ test('D.PRD예시', '예시2: 택시 4:4 + 밥값 결제자 불일치 -> 송금 
 });
 test('D.PRD예시', '예시3: 술 안 마신 사람 제외(일부 참여) 반영', () => {
   const ms = mk(4), a = ids(ms);
-  const r = S.computeAll(ms, [{ id: 'e', amount: 90000, payer: 'm0', participants: a.slice(1), mode: 'payer' }]);
+  const r = S.computeAll(ms, [{ id: 'e', amount: 90000, payer: 'm1', participants: a.slice(1), mode: 'payer' }]);
   eq(r.balances.find((b) => b.id === 'm0').owed, 0);
 });
 test('D.PRD예시', '예시5: 번갈아 결제(같은 금액) -> 송금 0회', () => {
@@ -285,12 +285,14 @@ test('G.명세반영', 'test.md 검증 기준에 감면 대상 수/비활성 규
     const ex = Array.from({ length: 1 + Math.floor(rand() * 5) }, (_, i) => {
       const parts = a.filter(() => rand() < 0.7); if (!parts.length) parts.push(a[0]);
       const discounts = {}; parts.slice(1).forEach((p) => { if (rand() < 0.2) discounts[p] = [10, 20, 50, 100][Math.floor(rand() * 4)]; }); // 첫 사람은 항상 비감면(감면 대상은 N-1명 이하)
-      return { id: 'e' + i, amount: 1 + Math.floor(rand() * 500000), payer: a[Math.floor(rand() * n)], participants: parts, discounts, mode: rand() < 0.5 ? 'payer' : 'random', seed: 1 + Math.floor(rand() * 1e6) };
+      const payer = a[Math.floor(rand() * n)]; if (!parts.includes(payer)) parts.push(payer); // 결제자는 항상 함께한 사람에 포함
+      return { id: 'e' + i, amount: 1 + Math.floor(rand() * 500000), payer, participants: parts, discounts, mode: rand() < 0.5 ? 'payer' : 'random', seed: 1 + Math.floor(rand() * 1e6) };
     });
     const r = S.computeAll(ms, ex), total = sum(ex.map((e) => e.amount));
     const left = Object.fromEntries(r.balances.map((b) => [b.id, b.net]));
     r.transfers.forEach((t) => { left[t.from] += t.amount; left[t.to] -= t.amount; });
-    if (r.total !== total) bad = `${k}: total`;
+    if (r.invalid.length) bad = `${k}: 검증 제외 ${r.invalid[0].reason}`;
+    else if (r.total !== total) bad = `${k}: total`;
     else if (sum(r.balances.map((b) => b.owed)) !== total) bad = `${k}: 부담 합계`;
     else if (sum(r.balances.map((b) => b.net)) !== 0) bad = `${k}: 차액합`;
     else if (r.transfers.length > n - 1) bad = `${k}: 송금 ${r.transfers.length} > ${n - 1}`;
@@ -299,6 +301,55 @@ test('G.명세반영', 'test.md 검증 기준에 감면 대상 수/비활성 규
   }
   test('E.무작위300', '5~20명 무작위(감면·랜덤 포함): 합계/차액/송금횟수/상계/재현성', () => assert(!bad, bad));
 }
+
+// ===== H. 변경 요청(감면율 정수 / 동명이인 / 결제자 포함) =====
+const okIds = (n) => ids(mk(n));
+test(EXC, '감면율 소수(12.5, 0.5, "7.5")는 거부되고 안내한다 (정수만 허용)', () => {
+  const a = okIds(5);
+  for (const v of [12.5, 0.5, '7.5', 99.9]) {
+    const c = V.validateExpense({ amount: 10000, payer: 'm0', participants: a, discounts: { m1: v } }, a);
+    eq(c.ok, false, `감면율 ${v}가 통과됨`); assert(/정수/.test(c.error), '안내 문구에 "정수" 없음: ' + c.error);
+  }
+});
+test(EXC, '감면율 범위 밖(-1, 101)과 숫자가 아닌 값("x")은 거부된다', () => {
+  const a = okIds(5);
+  for (const v of [-1, 101, 'x', NaN]) eq(V.validateExpense({ amount: 10000, payer: 'm0', participants: a, discounts: { m1: v } }, a).ok, false, `감면율 ${v}가 통과됨`);
+});
+test('H.감면정수', '감면율 정수(0, 1, 20, 50, 99, 100)는 허용된다 (100%도 N-1명 이하면 허용)', () => {
+  const a = okIds(5);
+  for (const v of [0, 1, 20, 50, 99, 100]) eq(V.validateExpense({ amount: 10000, payer: 'm0', participants: a, discounts: { m1: v } }, a).ok, true, `감면율 ${v}가 거부됨`);
+});
+test(EXC, '소수 감면율이 든 지출은 계산에서 제외되고 사유가 남는다(다른 지출에 영향 없음)', () => {
+  const ms = mk(5), a = ids(ms);
+  const r = S.computeAll(ms, [{ id: 'ok', amount: 50000, payer: 'm0', participants: a, mode: 'payer' }, { id: 'bad', amount: 50000, payer: 'm0', participants: a, discounts: { m1: 12.5 }, mode: 'payer' }]);
+  eq(r.total, 50000); eq(r.excluded, ['bad']); assert(/정수/.test(r.invalid[0].reason), r.invalid[0].reason);
+});
+test(EXC, '결제자가 함께한 사람에 없는 지출은 거부된다 (이런 지출은 없다고 가정)', () => {
+  const a = okIds(5);
+  const c = V.validateExpense({ amount: 10000, payer: 'm0', participants: a.slice(1), discounts: {} }, a);
+  eq(c.ok, false); assert(/결제한 사람/.test(c.error) && /포함/.test(c.error), '안내 문구: ' + c.error);
+});
+test(EXC, '결제자가 함께한 사람에 없는 지출은 계산에서도 제외되고 사유가 남는다', () => {
+  const ms = mk(5), a = ids(ms);
+  const r = S.computeAll(ms, [{ id: 'ok', amount: 50000, payer: 'm0', participants: a, mode: 'payer' }, { id: 'bad', amount: 30000, payer: 'm0', participants: a.slice(1), mode: 'payer' }]);
+  eq(r.total, 50000); eq(r.excluded, ['bad']); eq(sum(r.balances.map((b) => b.owed)), 50000); assert(/결제한 사람/.test(r.invalid[0].reason), r.invalid[0].reason);
+});
+test('H.결제자포함', '결제자가 함께한 사람에 포함된 지출(결제자 1명만 포함 포함)은 허용된다', () => {
+  const a = okIds(5);
+  eq(V.validateExpense({ amount: 10000, payer: 'm2', participants: a, discounts: {} }, a).ok, true);
+  eq(V.validateExpense({ amount: 10000, payer: 'm2', participants: ['m2'], discounts: {} }, a).ok, true);
+});
+
+// 동명이인은 doc 소스에서 app.js(화면) 안에서 처리하므로 로직 테스트 대신 UI 테스트(phase2_doc_ui.test.js)에서 확인한다.
+test('G.명세반영', '명세서에 감면율 정수 / 동명이인 (n) / 결제자 포함 / 수정 시 기존 잔여 선택 유지 규칙이 정의됨', () => {
+  assert(/감면율은\s*0\s*~\s*100의\s*정수/.test(spec), '감면율 정수 규칙 없음');
+  assert(/\(1\),\s*\(2\)/.test(spec) && /동명이인/.test(spec), '동명이인 규칙 없음');
+  assert(/결제한\s*사람은\s*반드시[\s\S]{0,20}함께한\s*사람/.test(spec), '결제자 포함 규칙 없음');
+  assert(/기존\s*선택을\s*유지/.test(spec), '수정 시 기존 잔여 선택 유지 규칙 없음');
+});
+test('G.명세반영', 'test.md 검증 기준에 4가지 변경 규칙이 반영됨', () => {
+  assert(/감면율은\s*0\s*~\s*100의\s*정수/.test(skill) && /\(1\),\(2\)/.test(skill) && /결제한\s*사람이[\s\S]{0,30}함께한\s*사람/.test(skill) && /기존\s*선택/.test(skill), '.claude/skills/test.md에 변경 규칙 없음');
+});
 
 // ---- 결과 출력 ----
 let pass = 0, fail = 0;
