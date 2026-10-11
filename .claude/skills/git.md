@@ -7,7 +7,7 @@
 
 ### branch 전략
 - 프로젝트 규모가 작기 때문에 main이 develop 디렉토리와 동일한 역할을 한다.
-- phase0, phase1, phase2/claude,phase2/doc 브랜치가 있다. 없다면 생성한다.
+- phase0, phase1, phase2/claude,phase2/doc , test 브랜치가 있다. 없다면 생성한다.
 - phase0은 이제부터 건들지 않는다.
 
 ### push
