@@ -1,0 +1,29 @@
+/* 입력 폼·지출 목록 */
+/* 폼 */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: block; margin-top: 16px; }
+.grid2 .field { margin-top: 0; }
+.field > span, .field-head span { display: block; color: var(--muted); font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.field-head { display: flex; justify-content: space-between; align-items: center; }
+.field-head small { font-weight: 400; }
+.disc-inputs { display: grid; gap: 8px; margin-top: 10px; }
+.disc-row { display: flex; align-items: center; gap: 10px; background: var(--amber-soft); border-radius: 14px; padding: 8px 12px; }
+.disc-row label { flex: 1; font-weight: 700; }
+.disc-row input { width: 84px; min-height: 44px; text-align: right; background: var(--card); }
+.actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.actions .btn.primary { flex: 1; min-height: 54px; font-size: 17px; }
+
+/* 지출 목록 */
+.expenses { list-style: none; margin: 20px 0 0; padding: 0; display: grid; gap: 10px; }
+.expense { background: var(--field); border-radius: 16px; padding: 14px; }
+.expense.editing { outline: 2px solid var(--accent); }
+.exp-main { display: flex; justify-content: space-between; gap: 10px; font-size: 17px; }
+.exp-main .amount { font-weight: 800; white-space: nowrap; }
+.exp-sub { color: var(--muted); font-size: 14px; margin-top: 3px; word-break: keep-all; }
+.exp-actions { margin-top: 6px; display: flex; gap: 8px; }
+.exp-actions .link { padding-left: 0; }
+.total-line { text-align: right; color: var(--muted); margin: 12px 0 0; }
+.total-line strong { color: var(--text); }
+.excluded { color: var(--red); font-size: 13px; margin-top: 4px; }
+.expenses .empty { text-align: center; padding: 10px; }
+

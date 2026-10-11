@@ -1,0 +1,24 @@
+/* 정산 결과 */
+/* 결과 */
+.summary {
+  background: var(--accent); color: var(--on-accent); border-radius: 16px; padding: 16px; margin-bottom: 14px;
+}
+.summary small { display: block; opacity: .85; font-size: 13px; }
+.summary strong { font-size: 28px; font-weight: 800; }
+.summary span { opacity: .9; font-size: 14px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 12px 4px; text-align: right; border-bottom: 1px solid var(--line); font-size: 15px; }
+th { color: var(--muted); font-weight: 700; font-size: 13px; }
+th:first-child, td:first-child { text-align: left; font-weight: 700; }
+td.pos { color: var(--green); font-weight: 800; }
+td.neg { color: var(--red); font-weight: 800; }
+tr.off td:first-child { color: var(--muted); text-decoration: line-through; }
+.transfers { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.transfers li {
+  display: flex; align-items: center; gap: 8px; background: var(--accent-soft); border-radius: 16px;
+  padding: 16px; font-size: 17px; font-weight: 800;
+}
+.transfers .arrow { color: var(--accent); }
+.transfers .amt { margin-left: auto; color: var(--accent); }
+.transfers li.empty { background: none; padding: 4px; font-weight: 400; color: var(--muted); }
+.muted { color: var(--muted); }
