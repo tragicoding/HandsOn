@@ -9,6 +9,8 @@ const S = require(path.join(SRC, 'settle.js'));
 let V = null;
 try { V = require(path.join(SRC, 'validate.js')); } catch (e) { V = null; }
 
+// 예외처리로 지정한 입력이 의도대로 거부·안내되면 PASS (test skill: "예외처리로 지정한 것이 의도대로 에러처리되었다면 PASS")
+const EXC = 'X.예외처리 성공(의도대로 거부·안내 = PASS)';
 const results = [];
 const test = (group, name, fn) => {
   try { fn(); results.push({ group, name, ok: true }); } catch (e) { results.push({ group, name, ok: false, msg: e.message }); }
@@ -158,7 +160,7 @@ test('D.예외', '결제자가 비활성이어도 결제 금액은 반영', () =
   eq(r.balances.find((b) => b.id === 'm0').paid, 9000);
   eq(sum(r.balances.map((b) => b.net)), 0);
 });
-test('D.예외', '금액 0, 음수, 소수, 문자열 입력은 안전하게 처리', () => {
+test(EXC, '금액 0, 음수, 소수, 문자열 입력은 안전하게 처리(오염 없이 거부/보정)', () => {
   const ms = mk(3), a = ids(ms);
   for (const amt of [0, -500, 1000.9, '5000', 'abc', NaN, null, undefined]) {
     const r = S.computeAll(ms, [{ id: 'e', amount: amt, payer: 'm0', participants: a, mode: 'payer' }]);
@@ -166,7 +168,7 @@ test('D.예외', '금액 0, 음수, 소수, 문자열 입력은 안전하게 처
     eq(sum(r.balances.map((b) => b.net)), 0, `차액합 (${amt})`);
   }
 });
-test('D.예외', '감면율 범위 밖(-5, 150, "x")은 0~100으로 보정', () => {
+test(EXC, '감면율 범위 밖(-5, 150, "x")은 0~100으로 보정', () => {
   eq(S.toPct(-5), 0); eq(S.toPct(150), 100); eq(S.toPct('x'), 0);
 });
 test('D.예외', '지출 0건: 차액 0, 송금 없음', () => {
@@ -208,10 +210,17 @@ test('D.PRD예시', '예시5: 번갈아 결제(같은 금액) -> 송금 0회', (
 const disc = (arr, pct = 20) => Object.fromEntries(arr.map((i) => [i, pct]));
 for (const n of [5, 10, 20]) {
   const ms = mk(n), a = ids(ms);
-  test('F.감면규칙', `${n}명 중 ${n}명(전원) 감면은 거부(계산에서 제외 + 사유 기록)`, () => {
+  test(EXC, `${n}명 중 ${n}명(전원) 감면은 거부(계산에서 제외 + 사유 기록)`, () => {
     const r = S.computeAll(ms, [{ id: 'e', amount: 100000, payer: 'm0', participants: a, discounts: disc(a), mode: 'payer' }]);
     assert(Array.isArray(r.invalid) && r.invalid.length === 1 && r.invalid[0].id === 'e', 'invalid에 기록되지 않음');
     eq(r.total, 0, '거부된 지출이 총액에 반영됨');
+  });
+  test(EXC, `${n}명 중 ${n}명(전원) 감면: 거부 사유에 감면 안내가 기록되고 다른 지출 계산에는 영향 없음`, () => {
+    const ok = { id: 'ok', amount: n * 1000, payer: 'm0', participants: a, discounts: {}, mode: 'payer' };
+    const bad = { id: 'bad', amount: 50000, payer: 'm0', participants: a, discounts: disc(a), mode: 'payer' };
+    const r = S.computeAll(ms, [bad, ok]);
+    assert(r.invalid.length === 1 && /감면/.test(r.invalid[0].reason), '사유 기록 없음');
+    eq(r.total, n * 1000, '정상 지출 합계'); eq(sum(r.balances.map((b) => b.owed)), n * 1000);
   });
   test('F.감면규칙', `${n}명 중 ${n - 1}명 감면은 허용(나머지 1명이 재분배 부담), 합계 일치`, () => {
     const e = { id: 'e', amount: 100003, payer: 'm0', participants: a, discounts: disc(a.slice(1), 50), mode: 'payer' };
@@ -236,7 +245,7 @@ test('F.감면규칙', '여러 명 감면(m1 20%, m2 50%): 비감면자 균등 �
   eq(sh, o.sh);
 });
 test('F.검증모듈', 'validate.js가 존재하고 validateExpense를 제공', () => assert(V && typeof V.validateExpense === 'function', 'src/validate.js(Validate.validateExpense) 없음'));
-test('F.검증모듈', '전원 감면 입력은 ok=false + 감면 안내 문구', () => {
+test(EXC, '검증모듈: 전원 감면 입력은 ok=false + 감면 안내 문구', () => {
   assert(V, 'validate.js 없음');
   const a = ids(mk(4)), r = V.validateExpense({ amount: 1000, payer: 'm0', participants: a, discounts: disc(a) }, a);
   eq(r.ok, false); assert(/감면/.test(r.error), '안내 문구에 감면 없음: ' + r.error);
@@ -247,7 +256,7 @@ test('F.검증모듈', 'N-1명 감면 / 감면 없음은 ok=true', () => {
   eq(V.validateExpense({ amount: 1000, payer: 'm0', participants: a, discounts: disc(a.slice(1)) }, a).ok, true);
   eq(V.validateExpense({ amount: 1000, payer: 'm0', participants: a, discounts: {} }, a).ok, true);
 });
-test('F.검증모듈', '금액 0/참여자 없음/없는 결제자는 ok=false', () => {
+test(EXC, '검증모듈: 금액 0/참여자 없음/없는 결제자는 ok=false', () => {
   assert(V, 'validate.js 없음');
   const a = ids(mk(3));
   eq(V.validateExpense({ amount: 0, payer: 'm0', participants: a }, a).ok, false);

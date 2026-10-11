@@ -55,7 +55,7 @@ const shots = [];
     await page.fill('#memberInput', '김유철'); await page.click('#memberForm button[type=submit]');
     ok((await page.locator('#memberList .chip').count()) === 3, '칩 3개가 아님');
   });
-  await step('FR-01 중복 이름/빈 이름은 추가되지 않는다', async () => {
+  await step('[예외처리 성공] FR-01 중복 이름/빈 이름은 추가되지 않는다', async () => {
     await addMember('김진서'); await addMember('   ');
     ok((await page.locator('#memberList .chip').count()) === 3, '중복/빈 이름이 추가됨');
   });
@@ -71,14 +71,14 @@ const shots = [];
     ok((await page.locator('#memberList .chip.off').count()) === 0, '활성화 안 됨');
   });
 
-  await step('입력 검증: 항목/금액 누락 시 추가되지 않고 안내 표시', async () => {
+  await step('[예외처리 성공] 입력 검증: 항목/금액 누락 시 추가되지 않고 안내 표시', async () => {
     await page.click('#expSubmit');
     ok((await text('#toast')).includes('항목'), '항목 안내 없음');
     await page.fill('#expTitle', '1차 고깃집'); await page.click('#expSubmit');
     ok((await text('#toast')).includes('금액'), '금액 안내 없음');
     ok((await page.locator('#expenseList .expense').count()) === 0, '지출이 추가됨');
   });
-  await step('금액 입력은 숫자만 허용하고 천 단위 콤마 표시', async () => {
+  await step('[예외처리 성공] 금액 입력은 숫자만 허용하고 천 단위 콤마 표시', async () => {
     await page.fill('#expAmount', ''); await page.type('#expAmount', 'ab12,3x4.5-');
     ok((await page.inputValue('#expAmount')) === '12,345', '실제: ' + (await page.inputValue('#expAmount')));
     await page.fill('#expAmount', '');
@@ -160,7 +160,7 @@ const shots = [];
     ok((await page.locator('#expenseList .expense').count()) === n - 1, '삭제 안 됨');
   });
 
-  await step('감면 규칙(0명 이상 N-1명 이하): 전원 감면은 선택 단계에서 거부', async () => {
+  await step('[예외처리 성공] 감면 규칙(0명 이상 N-1명 이하): 전원 감면은 선택 단계에서 거부', async () => {
     for (const n of ['김진서', '김진형', '김유철']) await toggleBtn('#expDiscounts', n).click();
     const cnt = await page.locator('#discountInputs input').count();
     ok(cnt === 2, `감면 대상이 ${cnt}명 선택됨(최대 2명이어야 함)`);
@@ -234,6 +234,8 @@ const shots = [];
   for (const r of results) {
     if (r.ok) pass++; else { fail++; console.log(`FAIL ${r.name}\n     └ ${r.msg}`); }
   }
+  const exc = results.filter((r) => r.name.startsWith('[예외처리 성공]'));
+  console.log(`\n■ 예외처리 성공(의도대로 거부·안내 = PASS): ${exc.filter((r) => r.ok).length}/${exc.length}`);
   console.log(`\n==== UI 테스트: 총 ${results.length}건 / PASS ${pass} / FAIL ${fail} ====`);
   fs.writeFileSync(path.join(SHOTS, 'phase2-doc-index.tsv'), shots.join('\n') + '\n');
   console.log('스크린샷:\n' + shots.join('\n'));
