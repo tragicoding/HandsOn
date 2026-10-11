@@ -25,7 +25,14 @@ const shots = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
   const step = async (name, fn) => {
-    try { await fn(); results.push({ name, ok: true }); } catch (e) { results.push({ name, ok: false, msg: e.message.split('\n')[0] }); }
+    try { await fn(); results.push({ name, ok: true }); } catch (e) {
+      results.push({ name, ok: false, msg: e.message.split('\n')[0] });
+      // 실패가 뒤 테스트로 번지지 않도록 화면을 정리한다 (열린 팝업 닫기, 수정 중이면 취소)
+      try {
+        if (await page.locator('#modal').isVisible()) await page.locator('#modalBtns button', { hasText: /취소/ }).click({ timeout: 2000 });
+        if (await page.locator('#cancelEdit').isVisible()) await page.locator('#cancelEdit').click({ timeout: 2000 });
+      } catch (_) { /* 정리 실패는 무시 */ }
+    }
   };
   const ok = (c, m) => { if (!c) throw new Error(m); };
   const shot = async (label, opts = {}) => {
