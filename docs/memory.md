@@ -8,3 +8,5 @@
 - push는 자격증명(PAT) 없어 미완료 상태일 수 있음.
 
 - 2026-10-12 00:07 KST | phase2/claude | 규칙 변경: 감면율 정수만(소수 거부) / 동명이인 (1),(2).. 자동 번호 / 결제자는 반드시 함께한 사람 포함(아니면 거부) / 수정 저장 시 이미 고른 잔여 방식 유지(처음 나누어떨어지지 않게 될 때만 팝업). 테스트 153건 PASS(test06, ver1.5). 스크린샷 phase2-claude-01~17. 다음: phase2/doc에 같은 test 적용.
+
+- 2026-10-12 00:44 KST | phase2/claude | phase0(`dutch-pay/`: settle.js 단순 N분의1, 체크박스, 삭제형 x, confirm 창)에 같은 테스트 적용: 153건 중 PASS 84 / FAIL 69 (test07). phase0는 감면·잔여·비활성·검증·동명이인 없음(기록용, 수정 안 함). 실행: `node scripts/test/run_phase0.js` (git origin/phase0에서 소스를 꺼냄).

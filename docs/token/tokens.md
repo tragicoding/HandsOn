@@ -10,3 +10,4 @@
 | P2C-01 | phase2-claude | 2026-10-11 | 약4m | 약 3,000 (근사) | 브랜치 생성·커밋 |
 | P2C-02 | phase2-claude | 2026-10-11 | 약 9m  | 미측정 (세션 컨텍스트 요약 1회 발생, 약 200,000 이상 근사) | implementer→tester→reviewer→memory→release-manager, 커밋 4개 |
 | P2C-03 | phase2-claude | 2026-10-12 | 약 10m (23:57~00:07 KST, phase2/doc 테스트 전까지) | 미측정 (약 60,000 근사) | 명세·소스·테스트·캡처 변경, 커밋 4개 |
+| P2C-04 | phase2-claude | 2026-10-12 | 약 8m (00:34~00:44 KST) | 미측정 (약 45,000 근사) | phase0 소스에 같은 테스트 적용, test07·error04 기록 |
