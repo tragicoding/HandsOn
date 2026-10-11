@@ -4,7 +4,7 @@
 |---|---|
 | 테스트 날짜, 시각 | 2026-10-11 22:04 (KST) |
 | 테스트 이름 | 명세서·test.md 반영 후 최종 재테스트 (test01 FAIL 17건 완전 해소 확인) |
-| 테스트 릴리즈 버전 | ver1.1 |
+| 테스트 릴리즈 버전 | ver1.2 |
 | 대상 커밋 | `6edfeba` docs(spec) / `96f46ae` docs(claude) |
 | 실행 | `node scripts/test/run_tests.js` (workflow: tester -> reviewer -> release-manager) |
 | 결과 요약 | **전체 130건 / PASS 130 / FAIL 0** |

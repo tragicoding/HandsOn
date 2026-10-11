@@ -25,3 +25,4 @@
 - agent 혹은 skills의 이름 및 역할은 해당 파일의 이름과 동일하다. 
 - test를 제외한 모든 경로는 HandsOn root 디렉토리로 부터의 상대경로이다.
 - Developer의 질문/요청은 항상 reviewer agent의 ###Turn을 수행한다. (여기서 질문/요청은 claude에게 보내는 모든 프롬프트를 포함한다.)
+- 명세서를 읽은 뒤 애매한 구현사항은 Developer에게 물어본다.

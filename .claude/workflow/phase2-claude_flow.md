@@ -15,7 +15,8 @@
     - `.claude\agents\tester.md`
 3. reviewer agent 실행
     - `.claude\agents\reviewer.md`
-    - 이는 test agent에 의해 호출된 것이다.
+    - 이는 tester agent에 의해 호출된 것이다.
+        - test 릴리즈 버전 up
     - 만약 error 발생에 의한 reviewer라면, reviewer의 업무가 끝난 이후에 위의 1,2번을 반복 실행한다.
 4. memory agent 실행
     - `.claude\agents\memory.md`

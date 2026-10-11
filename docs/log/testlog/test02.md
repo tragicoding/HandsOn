@@ -4,7 +4,7 @@
 |---|---|
 | 테스트 날짜, 시각 | 2026-10-11 22:03 (KST) |
 | 테스트 이름 | 예외처리 수정(implementer) 후 재테스트 — test01의 FAIL 재검증 |
-| 테스트 릴리즈 버전 | ver1.1 |
+| 테스트 릴리즈 버전 | ver1.2 |
 | 대상 커밋 | `0aa2728` fix(src) / `355db9f` test(scripts) |
 | 실행 | `node scripts/test/run_tests.js` (workflow: tester -> reviewer -> release-manager) |
 | 결과 요약 | **전체 130건 / PASS 126 / FAIL 4** (test01: PASS 113 / FAIL 17) |
