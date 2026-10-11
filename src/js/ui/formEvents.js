@@ -43,7 +43,7 @@
   /**
    * 기능 및 역할: 감면 인원 선택과 % 입력을 처리한다.
    * 핵심 로직: 새로 감면을 켤 때 감면 대상 수 규칙(0명 이상 N-1명 이하)을 넘으면 거부하고 안내한다.
-   *            % 입력은 숫자만 받고 0~100으로 제한한다. (정수 퍼센트만 허용)
+   *            % 입력은 정수만 받는다. 소수점(. ,)이 들어오면 소수 부분을 버리고 안내한다. 0~100으로 제한한다.
    */
   function bindDiscounts() {
     const { $, form } = ns;
@@ -62,7 +62,8 @@
     $('discountInputs').addEventListener('input', (e) => {
       const el = e.target.closest('input[data-id]');
       if (!el) return;
-      el.value = el.value.replace(/[^\d]/g, '').slice(0, 3);
+      if (/[.,]/.test(el.value)) ns.toast('감면율은 정수만 입력할 수 있어요');
+      el.value = el.value.split(/[.,]/)[0].replace(/[^\d]/g, '').slice(0, 3);
       form.discounts[el.dataset.id] = Math.min(100, Number(el.value) || 0);
     });
   }

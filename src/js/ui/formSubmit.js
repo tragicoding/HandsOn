@@ -40,13 +40,28 @@
     return true;
   }
 
+  /**
+   * 기능 및 역할: 수정 저장일 때, 이미 잔여 처리 방식을 골라 둔 지출이면 그 선택을 그대로 물려준다.
+   * 핵심 로직: 수정 전 지출에 남는 금액이 있었다면(=그때 선택했다면) mode와 seed를 복사하고 true를 돌려준다.
+   *            수정 전에 나누어떨어졌다면 선택한 적이 없으므로 false를 돌려줘서 팝업으로 묻는다.
+   */
+  function keepPreviousChoice(exp) {
+    const old = ns.form.editingId && ns.state.expenses.find((x) => x.id === ns.form.editingId);
+    if (!old) return false;
+    const oldIds = old.participants.filter((id) => ns.member(id));
+    if (ns.remainderOf(old.amount, oldIds, old.discounts) <= 0) return false;
+    exp.mode = old.mode;
+    exp.seed = old.seed;
+    return true;
+  }
+
   /** 기능 및 역할: 지출 폼 제출을 처리한다. (참여자가 없으면 안내) */
   function bindFormSubmit() {
     ns.$('expenseForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!ns.activeIds().length) return ns.toast('먼저 참여자를 추가하세요');
       const exp = readExpense();
-      if (!exp || !(await askRemainder(exp))) return;
+      if (!exp || !(keepPreviousChoice(exp) || await askRemainder(exp))) return;
       const { state, form } = ns;
       if (form.editingId) {
         state.expenses = state.expenses.map((x) => (x.id === form.editingId ? exp : x));
