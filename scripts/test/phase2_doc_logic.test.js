@@ -149,7 +149,7 @@ test('D.비활성', '비활성 참여자만 선택된 지출도 그대로 계산
 test('D.비활성', '지출 수정에서 함께한 사람을 해제하면 그때 재분배(참여자 목록이 바뀐 지출)', () => {
   const ms = mk(5); ms[3].active = false;
   const r = S.computeAll(ms, [{ id: 'e', amount: 40000, payer: 'm0', participants: ['m0', 'm1', 'm2', 'm4'], mode: 'payer' }]);
-  eq(r.balances.find((b) => b.id === 'm3').owed, 0);
+  eq(r.balances.find((b) => b.id === 'm3'), undefined, '해제된 비활성 참여자는 결과에서 빠져야 함');
   eq(sum(r.balances.map((b) => b.owed)), 40000);
 });
 test('D.예외', '결제자가 비활성이어도 결제 금액은 반영', () => {
