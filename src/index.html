@@ -3,70 +3,81 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>모임 정산</title>
+  <title>Dutch-Pay</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="top">
-    <div class="wrap top-inner">
-      <input id="groupName" class="group-name" placeholder="모임 이름" maxlength="40" />
-      <button id="resetBtn" class="ghost danger" type="button">초기화</button>
-    </div>
+    <input id="groupName" class="group-name" type="text" placeholder="모임 이름" maxlength="30" aria-label="모임 이름" />
+    <button id="resetBtn" class="btn ghost danger" type="button">초기화</button>
   </header>
 
-  <main class="wrap">
-    <!-- 1. 멤버 -->
-    <section class="card">
+  <main>
+    <!-- 1. 참여자 -->
+    <section class="card" id="sec-members">
       <h2><span class="step">1</span>참여자</h2>
-      <form id="memberForm" class="row">
-        <input id="memberInput" placeholder="이름 입력 후 Enter" maxlength="20" autocomplete="off" />
-        <button type="submit">추가</button>
+      <form id="memberForm" class="row" autocomplete="off">
+        <input id="memberInput" type="text" placeholder="이름 입력 후 Enter" maxlength="20" aria-label="참여자 이름" />
+        <button class="btn" type="submit">추가</button>
       </form>
       <ul id="memberList" class="chips"></ul>
     </section>
 
-    <!-- 2. 지출 -->
-    <section class="card">
+    <!-- 2. 지출 내역 -->
+    <section class="card" id="sec-expenses">
       <h2><span class="step">2</span>지출 내역</h2>
-      <form id="expenseForm" class="expense-form">
+      <form id="expenseForm" autocomplete="off">
         <div class="grid2">
-          <label>항목
-            <input id="expTitle" placeholder="예) 1차 고깃집" maxlength="40" required />
+          <label class="field"><span>항목</span>
+            <input id="expTitle" type="text" placeholder="예) 1차 고깃집" maxlength="30" />
           </label>
-          <label>금액(원)
-            <input id="expAmount" inputmode="numeric" placeholder="0" required />
+          <label class="field"><span>금액(원)</span>
+            <input id="expAmount" type="text" inputmode="numeric" placeholder="0" />
           </label>
         </div>
-        <label>결제한 사람
-          <select id="expPayer" required></select>
+        <label class="field"><span>결제한 사람</span>
+          <select id="expPayer"></select>
         </label>
         <div class="field">
-          <div class="field-head">
-            <span>함께 쓴 사람</span>
-            <button type="button" id="toggleAll" class="link">전체 선택/해제</button>
+          <div class="field-head"><span>함께 쓴 사람</span>
+            <button id="toggleAll" class="link" type="button">전체 선택/해제</button>
           </div>
-          <div id="expParticipants" class="checks"></div>
+          <div id="expParticipants" class="chips pick"></div>
         </div>
-        <div class="row end">
-          <button type="button" id="cancelEdit" class="ghost" hidden>취소</button>
-          <button type="submit" id="expSubmit" class="primary">지출 추가</button>
+        <div class="field">
+          <div class="field-head"><span>감면 인원 <small>(선택 후 % 입력)</small></span></div>
+          <div id="expDiscounts" class="chips pick"></div>
+          <div id="discountInputs" class="disc-inputs"></div>
+        </div>
+        <div class="actions">
+          <button id="cancelEdit" class="btn ghost" type="button" hidden>취소</button>
+          <button id="expSubmit" class="btn primary" type="submit">지출 추가</button>
         </div>
       </form>
       <ul id="expenseList" class="expenses"></ul>
-      <p id="totalLine" class="total"></p>
+      <p id="totalLine" class="total-line"></p>
     </section>
 
-    <!-- 3. 정산 -->
-    <section class="card">
+    <!-- 3. 정산 결과 -->
+    <section class="card" id="sec-result">
       <h2><span class="step">3</span>정산 결과</h2>
-      <div id="balances" class="balances"></div>
+      <div id="balances"></div>
       <h3>송금 목록</h3>
       <ul id="transfers" class="transfers"></ul>
-      <button id="copyBtn" class="primary wide" type="button">결과 텍스트 복사</button>
+      <button id="copyBtn" class="btn primary block" type="button">결과 텍스트 복사</button>
     </section>
   </main>
 
+  <!-- 팝업 (나누어떨어지지 않을 때 / 초기화 확인) -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h3 id="modalTitle"></h3>
+      <p id="modalMsg"></p>
+      <div id="modalBtns" class="modal-btns"></div>
+    </div>
+  </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
   <script src="settle.js"></script>
   <script src="app.js"></script>
 </body>
