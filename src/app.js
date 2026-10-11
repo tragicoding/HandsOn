@@ -309,6 +309,10 @@
     $('transfers').innerHTML = r.transfers.length
       ? r.transfers.map((t) => `<li><span>${esc(t.fromName)}</span><span class="arrow">→</span><span>${esc(t.toName)}</span><span class="amt">${won(t.amount)}</span></li>`).join('')
       : `<li class="empty">${r.included.length ? '모두 정산 완료! 보낼 돈이 없어요.' : '아직 송금할 내역이 없어요.'}</li>`;
+    const cnt = state.members.filter((m) => m.active).length;
+    $('summary').innerHTML = r.included.length
+      ? `<small>총 지출</small><strong>${won(r.total)}</strong> <span>· ${cnt}명 · 1인 평균 ${won(Math.round(r.total / Math.max(1, cnt)))}</span>`
+      : '<small>총 지출</small><strong>0원</strong>';
     $('copyBtn').disabled = !r.included.length;
   }
 
