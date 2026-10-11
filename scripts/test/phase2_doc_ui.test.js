@@ -1,14 +1,15 @@
 // phase2-doc 앱 기능 테스트 (브라우저 UI) + 화면 캡처
 // 실행: node scripts/test/phase2_doc_ui.test.js [스크린샷 폴더]   (playwright + chromium 필요)
-// 스크린샷 파일명: phase2-doc-01.png, phase2-doc-02.png ... (폴더 기본값: docs/log/web-screenshot)
+// 스크린샷 파일명: phase2-doc-01.png ... (폴더를 인자로 주면 그곳에 저장, 기본값은 임시 폴더)
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 let chromium;
 try { ({ chromium } = require('playwright')); } catch (e) { console.error('playwright가 없어 UI 테스트를 실행하지 못했습니다(미실행):', e.message); process.exit(2); }
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const URL = 'file://' + path.join(ROOT, 'src', 'index.html');
-const SHOTS = path.resolve(process.argv[2] || path.join(ROOT, 'docs', 'log', 'web-screenshot'));
+const SHOTS = path.resolve(process.argv[2] || path.join(os.tmpdir(), 'dutchpay-shots')) // 기본은 임시 폴더(문서용 캡처를 덮어쓰지 않음);
 fs.mkdirSync(SHOTS, { recursive: true });
 
 const results = [];
@@ -157,6 +158,31 @@ const shots = [];
     const n = await page.locator('#expenseList .expense').count();
     await page.click('#expenseList .expense:nth-child(4) [data-del]');
     ok((await page.locator('#expenseList .expense').count()) === n - 1, '삭제 안 됨');
+  });
+
+  await step('감면 규칙(0명 이상 N-1명 이하): 전원 감면은 선택 단계에서 거부', async () => {
+    for (const n of ['김진서', '김진형', '김유철']) await toggleBtn('#expDiscounts', n).click();
+    const cnt = await page.locator('#discountInputs input').count();
+    ok(cnt === 2, `감면 대상이 ${cnt}명 선택됨(최대 2명이어야 함)`);
+    ok((await text('#toast')).includes('감면'), '거부 안내 없음: ' + (await text('#toast')));
+    for (const n of ['김진서', '김진형', '김유철']) { if (await toggleBtn('#expDiscounts', n).evaluate((el) => el.classList.contains('on'))) await toggleBtn('#expDiscounts', n).click(); }
+  });
+  await step('비활성 규칙: 비활성화해도 기존 지출·정산은 그대로', async () => {
+    const before = await text('#balances');
+    await page.click('#memberList .chip:nth-child(3) button');
+    ok((await page.locator('#memberList .chip.off').count()) === 1, '비활성 표시 안 됨');
+    ok((await text('#balances')) === before, '비활성화만으로 기존 정산 결과가 바뀜');
+    ok((await text('#balances')).includes('김유철'), '비활성 참여자가 결과에서 사라짐');
+  });
+  await step('비활성 규칙: 지출 목록의 수정에서 함께한 사람을 비활성화(해제)해야 반영', async () => {
+    await page.click('#expenseList .expense:nth-child(2) [data-edit]');
+    ok((await page.locator('#expParticipants button.inactive').count()) === 1, '수정 화면에 비활성 참여자 칩(.inactive)이 없음');
+    await page.locator('#expParticipants button.inactive').click();
+    await page.click('#expSubmit');
+    ok(await page.locator('#modal').isHidden(), '40,000원/2명인데 팝업이 뜸');
+    const sub = await text('#expenseList .expense:nth-child(2) .exp-sub');
+    ok(sub.includes('2명'), '수정 후 2명이 아님: ' + sub);
+    await page.click('#memberList .chip:nth-child(3) button'); // 활성 복구
   });
 
   await step('FR-07/08 정산 결과: 차액 색(+초록/-빨강), 송금 목록 표시', async () => {

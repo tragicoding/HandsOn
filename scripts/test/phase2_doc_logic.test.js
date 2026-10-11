@@ -2,7 +2,12 @@
 // 실행: node scripts/test/phase2_doc_logic.test.js
 // 예상값은 requirements.md 비기능 요구 6번 알고리즘을 별도로 구현(oracle)해 비교한다.
 const path = require('path');
-const S = require(path.resolve(__dirname, '..', '..', 'src', 'settle.js'));
+const SRC = path.resolve(__dirname, '..', '..', 'src');
+const fs = require('fs');
+const S = require(path.join(SRC, 'settle.js'));
+// 입력 검증 모듈(src/validate.js). 없으면 관련 테스트가 FAIL로 기록된다.
+let V = null;
+try { V = require(path.join(SRC, 'validate.js')); } catch (e) { V = null; }
 
 const results = [];
 const test = (group, name, fn) => {
@@ -94,10 +99,6 @@ test('B.감면', '여러 명 감면 (m1 20%, m2 50%) 합계 유지', () => {
   const e = { amount: 99999, payer: 'm0', participants: a5, discounts: { m1: 20, m2: 50 }, mode: 'payer' };
   eq(sum(Object.values(S.expenseShares(e, a5))), 99999);
 });
-test('B.감면', '전원이 감면 대상이면 재분배 불가 -> 균등 분배, 합계 유지', () => {
-  const e = { amount: 50000, payer: 'm0', participants: a5, discounts: { m0: 20, m1: 20, m2: 20, m3: 20, m4: 20 }, mode: 'payer' };
-  eq(sum(Object.values(S.expenseShares(e, a5))), 50000);
-});
 test('B.감면', 'PRD 예시4: 운전자 20% 감면 후 N등분 (4명 100,000원)', () => {
   const ids4 = ['d', 'a', 'b', 'c'];
   const sh = S.expenseShares({ amount: 100000, payer: 'a', participants: ids4, discounts: { d: 20 }, mode: 'payer' }, ids4);
@@ -133,16 +134,23 @@ test('C.잔여', '금액 < 인원 (1원/5명): 합계 1원 유지', () => {
 });
 
 // ===== D. 예외/경계 =====
-test('D.예외', '참여자 비활성화: 해당 참여자 부담 0, 합계 유지', () => {
+test('D.비활성', '비활성화는 기존 지출에 영향 없음: 비활성 참여자도 기존 지출의 부담 유지', () => {
   const ms = mk(5); ms[3].active = false;
   const r = S.computeAll(ms, [{ id: 'e', amount: 50000, payer: 'm0', participants: ids(ms), mode: 'payer' }]);
-  eq(r.total, 50000); eq(r.balances.find((b) => b.id === 'm3'), undefined, '비활성 참여자는 결과에 없어야 함');
+  eq(r.total, 50000);
+  eq(r.balances.find((b) => b.id === 'm3').owed, 10000, '비활성 m3의 부담액');
   eq(sum(r.balances.map((b) => b.owed)), 50000);
 });
-test('D.예외', '정산 대상이 모두 비활성이면 지출 제외, NaN 없음', () => {
+test('D.비활성', '비활성 참여자만 선택된 지출도 그대로 계산(자동 제외·재분배 금지)', () => {
   const ms = mk(3); ms[1].active = ms[2].active = false;
   const r = S.computeAll(ms, [{ id: 'e', amount: 9000, payer: 'm0', participants: ['m1', 'm2'], mode: 'payer' }]);
-  eq(r.total, 0); eq(r.excluded, ['e']);
+  eq(r.total, 9000); eq(r.balances.find((b) => b.id === 'm1').owed, 4500);
+});
+test('D.비활성', '지출 수정에서 함께한 사람을 해제하면 그때 재분배(참여자 목록이 바뀐 지출)', () => {
+  const ms = mk(5); ms[3].active = false;
+  const r = S.computeAll(ms, [{ id: 'e', amount: 40000, payer: 'm0', participants: ['m0', 'm1', 'm2', 'm4'], mode: 'payer' }]);
+  eq(r.balances.find((b) => b.id === 'm3').owed, 0);
+  eq(sum(r.balances.map((b) => b.owed)), 40000);
 });
 test('D.예외', '결제자가 비활성이어도 결제 금액은 반영', () => {
   const ms = mk(3); ms[0].active = false;
@@ -196,6 +204,69 @@ test('D.PRD예시', '예시5: 번갈아 결제(같은 금액) -> 송금 0회', (
   eq(S.computeAll(ms, a.map((p, i) => ({ id: 'e' + i, amount: 40000, payer: p, participants: a, mode: 'payer' }))).transfers, []);
 });
 
+// ===== F. 감면 대상 수 규칙: 0명 이상 N-1명 이하 =====
+const disc = (arr, pct = 20) => Object.fromEntries(arr.map((i) => [i, pct]));
+for (const n of [5, 10, 20]) {
+  const ms = mk(n), a = ids(ms);
+  test('F.감면규칙', `${n}명 중 ${n}명(전원) 감면은 거부(계산에서 제외 + 사유 기록)`, () => {
+    const r = S.computeAll(ms, [{ id: 'e', amount: 100000, payer: 'm0', participants: a, discounts: disc(a), mode: 'payer' }]);
+    assert(Array.isArray(r.invalid) && r.invalid.length === 1 && r.invalid[0].id === 'e', 'invalid에 기록되지 않음');
+    eq(r.total, 0, '거부된 지출이 총액에 반영됨');
+  });
+  test('F.감면규칙', `${n}명 중 ${n - 1}명 감면은 허용(나머지 1명이 재분배 부담), 합계 일치`, () => {
+    const e = { id: 'e', amount: 100003, payer: 'm0', participants: a, discounts: disc(a.slice(1), 50), mode: 'payer' };
+    const r = S.computeAll(ms, [e]);
+    assert(!r.invalid || r.invalid.length === 0, '허용되어야 하는데 거부됨');
+    eq(r.total, 100003); eq(sum(r.balances.map((b) => b.owed)), 100003);
+    const o = oracle(100003, a, 'm0', disc(a.slice(1), 50), 'payer');
+    eq(Object.fromEntries(r.balances.map((b) => [b.id, b.owed])), o.sh, '개인별');
+  });
+  test('F.감면규칙', `${n}명 중 0명 감면은 허용`, () => {
+    const r = S.computeAll(ms, [{ id: 'e', amount: 100000, payer: 'm0', participants: a, discounts: {}, mode: 'payer' }]);
+    eq(r.total, 100000);
+  });
+}
+test('F.감면규칙', '감면율 0%만 지정한 인원은 감면 대상으로 세지 않음(전원 0%여도 허용)', () => {
+  const a = ids(mk(3)), r = S.computeAll(mk(3), [{ id: 'e', amount: 9000, payer: 'm0', participants: a, discounts: disc(a, 0), mode: 'payer' }]);
+  eq(r.total, 9000);
+});
+test('F.감면규칙', '여러 명 감면(m1 20%, m2 50%): 비감면자 균등 재분배, 합계 일치', () => {
+  const a = ids(mk(5)), e = { id: 'e', amount: 99999, payer: 'm0', participants: a, discounts: { m1: 20, m2: 50 }, mode: 'payer' };
+  const sh = S.expenseShares(e, a), o = oracle(99999, a, 'm0', { m1: 20, m2: 50 }, 'payer');
+  eq(sh, o.sh);
+});
+test('F.검증모듈', 'validate.js가 존재하고 validateExpense를 제공', () => assert(V && typeof V.validateExpense === 'function', 'src/validate.js(Validate.validateExpense) 없음'));
+test('F.검증모듈', '전원 감면 입력은 ok=false + 감면 안내 문구', () => {
+  assert(V, 'validate.js 없음');
+  const a = ids(mk(4)), r = V.validateExpense({ amount: 1000, payer: 'm0', participants: a, discounts: disc(a) }, a);
+  eq(r.ok, false); assert(/감면/.test(r.error), '안내 문구에 감면 없음: ' + r.error);
+});
+test('F.검증모듈', 'N-1명 감면 / 감면 없음은 ok=true', () => {
+  assert(V, 'validate.js 없음');
+  const a = ids(mk(4));
+  eq(V.validateExpense({ amount: 1000, payer: 'm0', participants: a, discounts: disc(a.slice(1)) }, a).ok, true);
+  eq(V.validateExpense({ amount: 1000, payer: 'm0', participants: a, discounts: {} }, a).ok, true);
+});
+test('F.검증모듈', '금액 0/참여자 없음/없는 결제자는 ok=false', () => {
+  assert(V, 'validate.js 없음');
+  const a = ids(mk(3));
+  eq(V.validateExpense({ amount: 0, payer: 'm0', participants: a }, a).ok, false);
+  eq(V.validateExpense({ amount: 1000, payer: 'm0', participants: [] }, a).ok, false);
+  eq(V.validateExpense({ amount: 1000, payer: 'ghost', participants: a }, a).ok, false);
+});
+
+// ===== G. 명세서 반영 여부 (명세에 정의되지 않은 동작은 가정으로 PASS 처리하지 않는다) =====
+const ROOT = path.resolve(SRC, '..');
+const readDoc = (rel) => { try { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); } catch (e) { return ''; } };
+const spec = readDoc('docs/PRD.md') + '\n' + readDoc('docs/requirements.md');
+const skill = readDoc('.claude/skills/test.md');
+const RULE_DISC = /감면\s*대상은\s*0\s*명\s*이상\s*N\s*-\s*1\s*명\s*이하/;
+const RULE_INACTIVE = /비활성화된\s*참여자[\s\S]{0,80}지출\s*내역[\s\S]{0,80}수정[\s\S]{0,80}함께한\s*사람[\s\S]{0,40}비활성화/;
+test('G.명세반영', '명세서에 감면 대상 수 규칙(0명 이상 N-1명 이하)이 정의됨 [전원 감면]', () => assert(RULE_DISC.test(spec), 'PRD/requirements에 규칙 없음 -> 가정 처리'));
+test('G.명세반영', '명세서에 비활성 참여자 처리 규칙(수정에서 함께한 사람 비활성화)이 정의됨 [비활성 참여자]', () => assert(RULE_INACTIVE.test(spec), 'PRD/requirements에 규칙 없음 -> 가정 처리'));
+test('G.명세반영', '명세서에 다중 감면 재분배 규칙(감면 대상이 아닌 사람에게 균등 재분배)이 정의됨 [다중 감면]', () => assert(/감면\s*대상이\s*아닌[\s\S]{0,40}균등/.test(spec) || /나머지\s*N\s*-\s*1\s*명/.test(spec) && RULE_DISC.test(spec), '다중 감면 재분배 규칙이 명세서에서 확인되지 않음 -> 가정 처리'));
+test('G.명세반영', 'test.md 검증 기준에 감면 대상 수/비활성 규칙이 반영됨', () => assert(RULE_DISC.test(skill) && RULE_INACTIVE.test(skill), '.claude/skills/test.md에 규칙 없음'));
+
 // ===== E. 무작위 300건 (재현 가능 seed) =====
 {
   const rand = S.rng(20261011);
@@ -204,7 +275,7 @@ test('D.PRD예시', '예시5: 번갈아 결제(같은 금액) -> 송금 0회', (
     const n = 5 + Math.floor(rand() * 16), ms = mk(n), a = ids(ms);
     const ex = Array.from({ length: 1 + Math.floor(rand() * 5) }, (_, i) => {
       const parts = a.filter(() => rand() < 0.7); if (!parts.length) parts.push(a[0]);
-      const discounts = {}; parts.forEach((p) => { if (rand() < 0.2) discounts[p] = [10, 20, 50, 100][Math.floor(rand() * 4)]; });
+      const discounts = {}; parts.slice(1).forEach((p) => { if (rand() < 0.2) discounts[p] = [10, 20, 50, 100][Math.floor(rand() * 4)]; }); // 첫 사람은 항상 비감면(감면 대상은 N-1명 이하)
       return { id: 'e' + i, amount: 1 + Math.floor(rand() * 500000), payer: a[Math.floor(rand() * n)], participants: parts, discounts, mode: rand() < 0.5 ? 'payer' : 'random', seed: 1 + Math.floor(rand() * 1e6) };
     });
     const r = S.computeAll(ms, ex), total = sum(ex.map((e) => e.amount));
