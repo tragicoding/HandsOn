@@ -7,5 +7,6 @@
 | P2D-01 | phase2-doc | 2026-10-11 | 9m:20s|약 45,000 (15,000,000 -> 약 14,955,000) | src 구현 + 테스트 + 문서화 (push·tag 전) |
 | P2D-02 | phase2-doc | 2026-10-11 | 미측정 | 약 65,000 (14,985,000 -> 약 14,935,000 근사) | 테스트 3회·수정·명세 반영, 커밋 10개 |
 | P2D-03 | phase2-doc | 2026-10-11 | 미측정 | 약 5,000 (근사) | 로그 복구 및 reflection 추가 |
-| P2C-01 | phase2-claude | 2026-10-11 | 미측정 | 약 3,000 (근사) | 브랜치 생성·커밋 |
-| P2C-02 | phase2-claude | 2026-10-11 | 약 9m (23:10~23:19 KST) | 미측정 (세션 컨텍스트 요약 1회 발생, 약 200,000 이상 근사) | implementer→tester→reviewer→memory→release-manager, 커밋 4개 |
+| P2C-01 | phase2-claude | 2026-10-11 | 약4m | 약 3,000 (근사) | 브랜치 생성·커밋 |
+| P2C-02 | phase2-claude | 2026-10-11 | 약 9m  | 미측정 (세션 컨텍스트 요약 1회 발생, 약 200,000 이상 근사) | implementer→tester→reviewer→memory→release-manager, 커밋 4개 |
+| P2C-03 | phase2-claude | 2026-10-12 | 약 10m (23:57~00:07 KST, phase2/doc 테스트 전까지) | 미측정 (약 60,000 근사) | 명세·소스·테스트·캡처 변경, 커밋 4개 |
