@@ -1,13 +1,10 @@
-// phase2-doc 정산 로직 테스트 (src/settle.js)
-// 실행: node scripts/test/phase2_doc_logic.test.js
+// phase2-claude 정산 로직 테스트 (src/js/core/*.js)
+// 실행: node scripts/test/phase2_claude_logic.test.js
 // 예상값은 requirements.md 비기능 요구 6번 알고리즘을 별도로 구현(oracle)해 비교한다.
 const path = require('path');
 const SRC = path.resolve(__dirname, '..', '..', 'src');
 const fs = require('fs');
-const S = require(path.join(SRC, 'settle.js'));
-// 입력 검증 모듈(src/validate.js). 없으면 관련 테스트가 FAIL로 기록된다.
-let V = null;
-try { V = require(path.join(SRC, 'validate.js')); } catch (e) { V = null; }
+const { S, V } = require('./loadCore.js');
 
 // 예외처리로 지정한 입력이 의도대로 거부·안내되면 PASS (test skill: "예외처리로 지정한 것이 의도대로 에러처리되었다면 PASS")
 const EXC = 'X.예외처리 성공(의도대로 거부·안내 = PASS)';
@@ -244,7 +241,7 @@ test('F.감면규칙', '여러 명 감면(m1 20%, m2 50%): 비감면자 균등 �
   const sh = S.expenseShares(e, a), o = oracle(99999, a, 'm0', { m1: 20, m2: 50 }, 'payer');
   eq(sh, o.sh);
 });
-test('F.검증모듈', 'validate.js가 존재하고 validateExpense를 제공', () => assert(V && typeof V.validateExpense === 'function', 'src/validate.js(Validate.validateExpense) 없음'));
+test('F.검증모듈', 'core/validate.js가 존재하고 validateExpense를 제공', () => assert(V && typeof V.validateExpense === 'function', 'src/js/core/validate.js(validateExpense) 없음'));
 test(EXC, '검증모듈: 전원 감면 입력은 ok=false + 감면 안내 문구', () => {
   assert(V, 'validate.js 없음');
   const a = ids(mk(4)), r = V.validateExpense({ amount: 1000, payer: 'm0', participants: a, discounts: disc(a) }, a);

@@ -1,6 +1,6 @@
-// phase2-doc 앱 기능 테스트 (브라우저 UI) + 화면 캡처
-// 실행: node scripts/test/phase2_doc_ui.test.js [스크린샷 폴더]   (playwright + chromium 필요)
-// 스크린샷 파일명: phase2-doc-01.png ... (폴더를 인자로 주면 그곳에 저장, 기본값은 임시 폴더)
+// phase2-claude 앱 기능 테스트 (브라우저 UI) + 화면 캡처
+// 실행: node scripts/test/phase2_claude_ui.test.js [스크린샷 폴더]   (playwright + chromium 필요)
+// 스크린샷 파일명: phase2-claude-01.png ... (폴더를 인자로 주면 그곳에 저장, 기본값은 임시 폴더)
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -30,7 +30,7 @@ const shots = [];
   const ok = (c, m) => { if (!c) throw new Error(m); };
   const shot = async (label, opts = {}) => {
     shotNo++;
-    const file = `phase2-doc-${String(shotNo).padStart(2, '0')}.png`;
+    const file = `phase2-claude-${String(shotNo).padStart(2, '0')}.png`;
     await page.screenshot({ path: path.join(SHOTS, file), fullPage: true, ...opts });
     shots.push(`${file}\t${label}`);
   };
@@ -237,7 +237,7 @@ const shots = [];
   const exc = results.filter((r) => r.name.startsWith('[예외처리 성공]'));
   console.log(`\n■ 예외처리 성공(의도대로 거부·안내 = PASS): ${exc.filter((r) => r.ok).length}/${exc.length}`);
   console.log(`\n==== UI 테스트: 총 ${results.length}건 / PASS ${pass} / FAIL ${fail} ====`);
-  fs.writeFileSync(path.join(SHOTS, 'phase2-doc-index.tsv'), shots.join('\n') + '\n');
+  fs.writeFileSync(path.join(SHOTS, 'phase2-claude-index.tsv'), shots.join('\n') + '\n');
   console.log('스크린샷:\n' + shots.join('\n'));
   process.exit(fail ? 1 : 0);
 })();
