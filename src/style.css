@@ -89,6 +89,8 @@ input::placeholder { color: var(--muted); opacity: .7; }
   border-radius: 12px; padding: 0 18px; font-size: 16px; font-weight: 600; cursor: pointer;
 }
 .toggle.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 800; }
+.toggle.inactive { border-style: dashed; opacity: .6; text-decoration: line-through; }
+.toggle.inactive.on { background: var(--muted); border-color: var(--muted); }
 .toggle.disc.on { background: var(--amber); border-color: var(--amber); color: #2b2100; }
 
 /* 폼 */

@@ -97,10 +97,15 @@
     return shares;
   }
 
+  // 입력 검증 모듈 (브라우저: 전역 Validate, Node: require)
+  const Validate = (typeof module !== 'undefined' && module.exports) ? require('./validate.js') : root.Validate;
+
   /**
    * 전체 정산.
    * members: [{id, name, active}], expenses: [{id,title,amount,payer,participants,discounts,mode,seed}]
-   * 비활성 참여자는 정산 대상에서 빠진다. 정산 대상이 한 명도 없는 지출은 제외(excluded)한다.
+   * 비활성화는 기존 지출을 바꾸지 않는다(비활성 참여자도 기존 지출의 부담을 그대로 가진다).
+   * 지출에서 빼려면 지출 내역의 "수정"에서 함께한 사람을 해제한다.
+   * 검증에 실패한 지출(감면 대상 전원, 금액 없음 등)은 계산에서 제외하고 invalid에 사유를 남긴다.
    */
   function computeAll(members, expenses) {
     const byId = {};
@@ -108,10 +113,12 @@
     let total = 0;
     const included = [];
     const excluded = [];
+    const invalid = [];
     for (const e of expenses) {
-      const ids = (e.participants || []).filter((id) => byId[id] && byId[id].active);
+      const ids = (e.participants || []).filter((id) => byId[id]);
       const amount = toWon(e.amount);
-      if (!byId[e.payer] || !ids.length || !amount) { excluded.push(e.id); continue; }
+      const check = Validate.validateExpense(e, Object.keys(byId));
+      if (!check.ok) { excluded.push(e.id); invalid.push({ id: e.id, reason: check.error }); continue; }
       const shares = expenseShares(Object.assign({}, e, { amount }), ids);
       byId[e.payer].paid += amount;
       for (const id in shares) byId[id].owed += shares[id];
@@ -124,7 +131,7 @@
       b.net = b.paid - b.owed;
       if (b.active || b.paid || b.owed) balances.push(b);
     }
-    return { total, balances, transfers: computeTransfers(balances), included, excluded };
+    return { total, balances, transfers: computeTransfers(balances), included, excluded, invalid };
   }
 
   /** 송금 목록: 가장 많이 받을 사람 <-> 가장 많이 보낼 사람을 반복 상계 (최대 인원-1회) */

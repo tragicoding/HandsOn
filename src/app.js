@@ -9,7 +9,7 @@
   // ---------- 상태 (localStorage에 저장 -> 새로고침해도 유지) ----------
   let state = load();
   // 지출 입력 폼의 임시 상태 (저장하지 않음)
-  const form = { participants: new Set(), discounts: {}, editingId: null, touched: false };
+  const form = { participants: new Set(), discounts: {}, editingId: null, editingMembers: new Set() };
 
   function load() {
     try {
@@ -24,6 +24,27 @@
   const member = (id) => state.members.find((m) => m.id === id);
   const nameOf = (id) => (member(id) || {}).name || '(알 수 없음)';
   const activeIds = () => state.members.filter((m) => m.active).map((m) => m.id);
+
+  /**
+   * 기능 및 역할: 지출 입력 폼의 "함께 쓴 사람" 칸에 보여줄 참여자 목록을 돌려준다.
+   * 핵심 로직: 새 지출은 활성 참여자만, 지출 "수정" 중에는 그 지출에 포함된 비활성 참여자도 함께 보여 줘서
+   *            여기서 직접 해제할 수 있게 한다. (비활성화는 기존 지출을 자동으로 바꾸지 않는다)
+   */
+  function formMembers() {
+    return state.members.filter((m) => m.active || (form.editingId && form.editingMembers.has(m.id)));
+  }
+
+  /**
+   * 기능 및 역할: 감면 대상 수가 규칙(0명 이상 N-1명 이하)을 넘으면 감면을 해제하고 안내한다.
+   * 핵심 로직: 함께한 사람이 바뀐 뒤 감면 대상이 전원이 되면 Validate 규칙에 어긋나므로 감면을 모두 푼다.
+   */
+  function enforceDiscountRule() {
+    const parts = [...form.participants];
+    if (!Validate.checkDiscountCount(parts, form.discounts).ok) {
+      form.discounts = {};
+      toast('감면 대상이 전원이 되어 감면을 해제했어요');
+    }
+  }
 
   function toast(msg) {
     const t = $('toast');
@@ -75,8 +96,11 @@
     const m = member(btn.dataset.toggle);
     if (!m) return;
     m.active = !m.active;
-    if (m.active) form.participants.add(m.id);
-    else { form.participants.delete(m.id); delete form.discounts[m.id]; }
+    // 비활성화는 이미 저장된 지출을 바꾸지 않는다. 새 지출 입력 폼의 선택만 갱신한다.
+    if (!form.editingId) {
+      if (m.active) form.participants.add(m.id);
+      else { form.participants.delete(m.id); delete form.discounts[m.id]; enforceDiscountRule(); }
+    }
     commit();
   });
 
@@ -89,10 +113,11 @@
   const readAmount = () => Number(amountEl.value.replace(/[^\d]/g, '')) || 0;
 
   $('toggleAll').addEventListener('click', () => {
-    const ids = activeIds();
+    const ids = formMembers().map((m) => m.id);
     const allOn = ids.length > 0 && ids.every((id) => form.participants.has(id));
     form.participants = new Set(allOn ? [] : ids);
     Object.keys(form.discounts).forEach((id) => { if (!form.participants.has(id)) delete form.discounts[id]; });
+    enforceDiscountRule();
     renderForm();
   });
 
@@ -102,6 +127,7 @@
     const id = b.dataset.id;
     if (form.participants.has(id)) { form.participants.delete(id); delete form.discounts[id]; }
     else form.participants.add(id);
+    enforceDiscountRule();
     renderForm();
   });
 
@@ -110,7 +136,13 @@
     if (!b) return;
     const id = b.dataset.id;
     if (id in form.discounts) delete form.discounts[id];
-    else form.discounts[id] = 10;
+    else {
+      // 감면 대상은 0명 이상 N-1명 이하만 허용: 전원이 되는 선택은 거부한다
+      const next = Object.assign({}, form.discounts, { [id]: 10 });
+      const check = Validate.checkDiscountCount([...form.participants], next);
+      if (!check.ok) return toast(check.error);
+      form.discounts[id] = 10;
+    }
     renderForm();
   });
 
@@ -128,14 +160,14 @@
     const title = $('expTitle').value.trim();
     const amount = readAmount();
     const payer = $('expPayer').value;
-    const participants = [...form.participants].filter((id) => activeIds().includes(id));
+    const participants = [...form.participants].filter((id) => member(id));
     if (!title) return toast('항목을 입력하세요');
-    if (!amount) return toast('금액을 입력하세요');
-    if (!payer) return toast('결제한 사람을 선택하세요');
-    if (!participants.length) return toast('함께 쓴 사람을 한 명 이상 선택하세요');
 
     const discounts = {};
     participants.forEach((id) => { if (form.discounts[id] > 0) discounts[id] = Settle.toPct(form.discounts[id]); });
+    // 금액·결제자·함께한 사람·감면 대상 수 규칙을 한 곳(validate.js)에서 검사
+    const check = Validate.validateExpense({ amount, payer, participants, discounts }, state.members.map((m) => m.id));
+    if (!check.ok) return toast(check.error);
 
     // 나누어떨어지지 않으면 잔여 처리 방식을 묻는다
     const exp = { id: form.editingId || uid(), title, amount, payer, participants, discounts, mode: 'payer', seed: 1 };
@@ -170,6 +202,7 @@
   function resetForm() {
     form.editingId = null;
     form.discounts = {};
+    form.editingMembers = new Set();
     form.participants = new Set(activeIds());
     $('expTitle').value = '';
     amountEl.value = '';
@@ -186,13 +219,15 @@
       const x = state.expenses.find((v) => v.id === edit.dataset.edit);
       if (!x) return;
       form.editingId = x.id;
-      form.participants = new Set(x.participants.filter((id) => member(id) && member(id).active));
+      // 비활성 참여자도 포함해 불러온다 -> 여기서 직접 해제해야 이 지출에서 빠진다
+      form.editingMembers = new Set(x.participants.filter((id) => member(id)));
+      form.participants = new Set(form.editingMembers);
       form.discounts = Object.assign({}, x.discounts || {});
       Object.keys(form.discounts).forEach((id) => { if (!form.participants.has(id)) delete form.discounts[id]; });
       render();
       $('expTitle').value = x.title;
       amountEl.value = Number(x.amount).toLocaleString('ko-KR');
-      if (member(x.payer) && member(x.payer).active) $('expPayer').value = x.payer;
+      if (member(x.payer)) $('expPayer').value = x.payer;
       $('expenseForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });
@@ -214,11 +249,11 @@
   function buildText() {
     const r = Settle.computeAll(state.members, state.expenses);
     const included = state.expenses.filter((x) => r.included.includes(x.id));
-    const count = state.members.filter((m) => m.active).length;
+    const count = r.balances.length;
     const lines = [`[${state.groupName.trim() || '모임'} 정산]`, `총 지출 ${won(r.total)} · ${count}명`, ''];
     lines.push('■ 지출 내역');
     included.forEach((x) => {
-      const n = x.participants.filter((id) => member(id) && member(id).active).length;
+      const n = x.participants.filter((id) => member(id)).length;
       lines.push(`- ${x.title} ${won(x.amount)} (${nameOf(x.payer)} 결제, ${n}명)`);
     });
     lines.push('', '■ 송금');
@@ -249,14 +284,14 @@
   }
 
   function renderForm() {
-    const act = state.members.filter((m) => m.active);
+    const act = formMembers();
     const payerSel = $('expPayer');
     const prev = payerSel.value;
     payerSel.innerHTML = act.map((m) => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
     if (act.some((m) => m.id === prev)) payerSel.value = prev;
 
     $('expParticipants').innerHTML = act.length
-      ? act.map((m) => `<button type="button" class="toggle${form.participants.has(m.id) ? ' on' : ''}" data-id="${m.id}">${esc(m.name)}</button>`).join('')
+      ? act.map((m) => `<button type="button" class="toggle${m.active ? '' : ' inactive'}${form.participants.has(m.id) ? ' on' : ''}" data-id="${m.id}">${esc(m.name)}</button>`).join('')
       : '<span class="muted">참여자를 먼저 추가하세요</span>';
 
     const sel = act.filter((m) => form.participants.has(m.id));
@@ -278,9 +313,9 @@
     const r = Settle.computeAll(state.members, state.expenses);
     $('expenseList').innerHTML = state.expenses.length
       ? state.expenses.map((x) => {
-          const ids = x.participants.filter((id) => member(id) && member(id).active);
+          const ids = x.participants.filter((id) => member(id));
           const skipped = !r.included.includes(x.id);
-          const allActive = ids.length === state.members.filter((m) => m.active).length;
+          const allActive = ids.length === state.members.length;
           const who = allActive ? '전원' : ids.map(nameOf).map(esc).join(', ');
           const per = ids.length ? Math.floor(x.amount / ids.length) : 0;
           const discs = Object.keys(x.discounts || {}).filter((id) => ids.includes(id)).map((id) => `${esc(nameOf(id))} ${x.discounts[id]}% 감면`);
@@ -288,7 +323,7 @@
           return `<li class="expense${x.id === form.editingId ? ' editing' : ''}">
             <div class="exp-main"><strong>${esc(x.title)}</strong><span class="amount">${won(x.amount)}</span></div>
             <div class="exp-sub">${esc(nameOf(x.payer))} 결제 · ${who} (${ids.length}명, 1인 약 ${won(per)})${discs.length ? ' · ' + discs.join(', ') : ''}${mode}</div>
-            ${skipped ? '<div class="excluded">정산 대상이 없어 계산에서 제외됐어요</div>' : ''}
+            ${skipped ? `<div class="excluded">계산에서 제외됨: ${esc((r.invalid.find((v) => v.id === x.id) || {}).reason || '')}</div>` : ''}
             <div class="exp-actions">
               <button type="button" class="link" data-edit="${x.id}">수정</button>
               <button type="button" class="link danger" data-del="${x.id}">삭제</button>
@@ -296,7 +331,7 @@
           </li>`;
         }).join('')
       : '<li class="empty">지출을 추가하면 여기에 쌓여요.</li>';
-    const n = Math.max(1, state.members.filter((m) => m.active).length);
+    const n = Math.max(1, r.balances.length);
     $('totalLine').innerHTML = r.included.length ? `총 지출 <strong>${won(r.total)}</strong> · 1인 평균 ${won(Math.round(r.total / n))}` : '';
   }
 
@@ -309,7 +344,7 @@
     $('transfers').innerHTML = r.transfers.length
       ? r.transfers.map((t) => `<li><span>${esc(t.fromName)}</span><span class="arrow">→</span><span>${esc(t.toName)}</span><span class="amt">${won(t.amount)}</span></li>`).join('')
       : `<li class="empty">${r.included.length ? '모두 정산 완료! 보낼 돈이 없어요.' : '아직 송금할 내역이 없어요.'}</li>`;
-    const cnt = state.members.filter((m) => m.active).length;
+    const cnt = r.balances.length;
     $('summary').innerHTML = r.included.length
       ? `<small>총 지출</small><strong>${won(r.total)}</strong> <span>· ${cnt}명 · 1인 평균 ${won(Math.round(r.total / Math.max(1, cnt)))}</span>`
       : '<small>총 지출</small><strong>0원</strong>';
