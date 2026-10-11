@@ -8,7 +8,7 @@
 - `.claude\skills\docs.md` 의 skill에 따라 행동한다.
 
 ### 문서를 작성하는 상황들
-- Developer의 질문 Turn에 대한 기록을 할 때
+- Developer의 질문/요청 Turn에 대한 기록을 할 때
   - ###Turn 보고를 참고한다.
   - Developer가 claude에게 질문했을 경우에만 실행한다.
 - tester agent에 의해 호출되는 경우
