@@ -22,5 +22,6 @@
   ns.bindExpenseList();
   ns.bindCopy();
   ns.bindHeader();
+  ns.bindSplash();
   ns.render();
 })(globalThis.DutchPay);

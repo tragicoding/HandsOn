@@ -4,12 +4,53 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dutch-Pay</title>
+  <script>
+    /* 저장된 모드(없으면 기기 설정)를 화면이 그려지기 전에 적용해서 깜빡임을 막는다 */
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem('dutchpay:theme'); } catch (e) { /* 저장소를 못 읽으면 기기 설정을 따른다 */ }
+      if (t !== 'dark' && t !== 'light') t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/form.css" />
   <link rel="stylesheet" href="css/result.css" />
   <link rel="stylesheet" href="css/modal.css" />
+  <link rel="stylesheet" href="css/splash.css" />
 </head>
-<body>
+<body class="splash-open">
+  <!-- 시작 화면: 캐릭터 + Dutch Pay 문구 + 모드 선택 + 시작하기 -->
+  <div id="splash" class="splash" role="dialog" aria-modal="true" aria-labelledby="splashTitle">
+    <div class="splash-inner">
+      <h1 id="splashTitle" class="splash-title" aria-label="Dutch Pay">
+        <span class="word" aria-hidden="true"><span style="--i:0">D</span><span style="--i:1">u</span><span style="--i:2">t</span><span style="--i:3">c</span><span style="--i:4">h</span></span>
+        <span class="word pay" aria-hidden="true"><span style="--i:5">P</span><span style="--i:6">a</span><span style="--i:7">y</span></span>
+      </h1>
+
+      <div class="mascot-wrap">
+        <img class="mascot" src="assets/mascot.png" alt="영수증 캐릭터가 연필을 들고 동전 옆에 서 있어요" width="322" height="275" draggable="false" />
+        <span class="mascot-shadow" aria-hidden="true"></span>
+      </div>
+
+      <div class="mode-row" role="group" aria-label="화면 모드">
+        <button id="darkBtn" class="btn mode" type="button" aria-pressed="false">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a.6.6 0 0 0-.8-.7A9.6 9.6 0 1 0 21.2 15a.6.6 0 0 0-.7-.8z" fill="currentColor"/></svg>
+          다크 모드
+        </button>
+        <button id="lightBtn" class="btn mode" type="button" aria-pressed="false">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M5.3 18.7 7 17M17 7l1.7-1.7"/></g></svg>
+          화이트 모드
+        </button>
+      </div>
+
+      <button id="startBtn" class="btn primary start" type="button">
+        시작하기
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13m-5-5.5 5.5 5.5-5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+
   <header class="top">
     <input id="groupName" class="group-name" type="text" placeholder="모임 이름" maxlength="30" aria-label="모임 이름" />
     <button id="resetBtn" class="btn ghost danger" type="button">초기화</button>
@@ -100,6 +141,7 @@
   <script src="js/ui/result.js"></script>
   <script src="js/ui/copy.js"></script>
   <script src="js/ui/header.js"></script>
+  <script src="js/ui/splash.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 // 실행: node scripts/test/run_tests.js
 //  1) 정산 로직·예외·명세 반영 테스트  : phase2_claude_logic.test.js  (Node만 필요)
 //  2) 앱(브라우저) 기능 테스트        : phase2_claude_ui.test.js     (playwright + chromium 필요, 없으면 "미실행")
+//  3) 시작 화면 테스트                : phase2_claude_splash.test.js (playwright + chromium 필요, 없으면 "미실행")
 // 현재 src(js/core, js/ui, js/app.js)에 맞춘 스크립트이며, src 구조가 바뀌면 이 폴더의 스크립트도 함께 수정한다.
 const path = require('path');
 const { spawnSync } = require('child_process');
@@ -9,6 +10,7 @@ const { spawnSync } = require('child_process');
 const jobs = [
   { name: '정산 로직·예외·명세 반영', file: 'phase2_claude_logic.test.js' },
   { name: '앱 기능(브라우저 UI)', file: 'phase2_claude_ui.test.js' },
+  { name: '시작 화면(모드 선택·시작하기)', file: 'phase2_claude_splash.test.js' },
 ];
 const summary = [];
 for (const j of jobs) {

@@ -20,6 +20,10 @@ const shots = [];
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 430, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await ctx.newPage();
+  // 시작 화면 대응: 열거나 새로고침한 뒤에는 '시작하기'를 눌러 메인 화면으로 들어간다.
+  const startApp = async () => { await page.click('#startBtn'); await page.waitForSelector('#splash', { state: 'hidden' }); };
+  const rawReload = page.reload.bind(page);
+  page.reload = async (...a) => { const r = await rawReload(...a); await startApp(); return r; };
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -46,6 +50,7 @@ const shots = [];
   const toggleBtn = (container, name) => page.locator(`${container} button`, { hasText: new RegExp(`^${name}$`) });
 
   await page.goto(URL);
+  await startApp();
   await page.evaluate(() => localStorage.clear());
   await page.reload();
 
@@ -228,7 +233,7 @@ const shots = [];
   await step('FR-08 결과 텍스트 복사 형식 ([모임 정산] / ■ 지출 내역 / ■ 송금)', async () => {
     await page.fill('#groupName', '가족모임');
     await page.click('#copyBtn');
-    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    const clip = (await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n');
     ok(clip.startsWith('[가족모임 정산]\n총 지출 '), '머리말: ' + clip.slice(0, 30));
     ok(clip.includes('■ 지출 내역\n- 1차 고기집 70,000원 (김진서 결제, 2명)'), '지출 내역 형식: ' + clip);
     ok(/■ 송금\n.+ → .+ [\d,]+원/.test(clip), '송금 형식');
