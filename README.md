@@ -1,12 +1,16 @@
-# Dutch-Pay
+# Dutch-Pay-Ver1.0
 
 모임에서 생기는 복잡한 변수(택시, 술 안 마신 사람, 운전자 감면, 번갈아 결제)를 반영해 정산하고, **누가 누구에게 얼마를 보낼지**까지 자동으로 계산해 주는 더치페이 웹앱입니다. 로그인과 서버 없이 브라우저에서만 동작합니다.
 
 ## 데모
 
+웹앱 이름은 **Dutch-Pay-Ver1.0**입니다. 아래 링크로 열면 브라우저 탭 제목도 `Dutch-Pay-Ver1.0`으로 보입니다. (릴리즈 태그: `Dutch-Pay-Ver1.0`)
+
 | 이름 | 저장소 | GitHub Pages 데모 | 한 줄 설명 |
 |---|---|---|---|
 | 김진서 | [tragicoding/HandsOn](https://github.com/tragicoding/HandsOn) | [tragicoding.github.io/HandsOn](https://tragicoding.github.io/HandsOn/) | 감면·잔여 금액·차등 부담까지 반영해 송금 횟수를 최소로 줄여 주는 모임 정산 웹앱 |
+
+[text](https://drive.google.com/file/d/1iCLVs0ZjSHHdzd6SbosHw4fLXHQbqh8T/view?usp=sharing)
 
 ## 주요 기능
 
